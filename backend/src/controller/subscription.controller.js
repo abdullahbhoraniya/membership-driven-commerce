@@ -1,3 +1,4 @@
+import { Subscription } from "../models/subscription.model.js";
 import { createSubscriptions } from "../services/subscription.service.js";
 import AppError from "../utils/AppError.js";
 
@@ -45,4 +46,20 @@ export const CreateSubscription=async(req,res,next)=>{
 catch(err){
     next(err)
 }
+}
+
+export const getSubscription=async(req,res,next)=>{
+    try {
+        const getSubscription=await Subscription.find();
+
+        console.log("Get subscription",getSubscription);
+
+        return res.status(200).json({
+            success:true,
+            message:"Subscription fetch successfully",
+            data:getSubscription
+        })
+    } catch (error) {
+        
+    }
 }
