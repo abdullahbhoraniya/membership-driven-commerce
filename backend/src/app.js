@@ -7,6 +7,7 @@ import route from './routes/payments.route.js';
 import errorMiddleware from './middleware/error.middleware.js';
 import authroute from './routes/auth.route.js';
 import subRoute from './routes/subscription.route.js';
+import productRoute  from './routes/product.route.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(cookieParser());
 app.use('/api/v1/payments', route);
 app.use('/api/v1/auth', authroute);
 app.use("/api/v1/subscription",subRoute)
+app.use("/api/v1/products",productRoute)
 // home page to confirm api is up and running
 app.get('/', (req, res) => {
   res.send('API Running...');
