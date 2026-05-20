@@ -60,6 +60,7 @@ export const refreshtoken = async (req, res, next) => {
 
 export const getMe = async (req, res, next) => {
   try {
+    console.log("comes in ",req.headers.authorization);
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -71,10 +72,7 @@ export const getMe = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "User details fetched successfully",
-      user: {
-        userName: response.user.userName,
-        email: response.user.email
-      }
+      user: response.user
     });
   } catch (error) {
     next(error);
@@ -108,7 +106,8 @@ export const loginUser = async (req, res, next) => {
       message: "Logged in successfully",
       user: {
         userName: response.userData.userName,
-        email: response.userData.email
+        email: response.userData.email,
+        subscription:response.userData.subscription
       },
       token: response.accessToken
     });

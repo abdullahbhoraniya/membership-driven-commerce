@@ -66,7 +66,7 @@ export const login = async (email, password, ip, userAgent) => {
   });
 
   const accessToken = createAccessToken(user._id);
-
+  console.log("UserData after login",user)
   return {
     success: true,
     accessToken,

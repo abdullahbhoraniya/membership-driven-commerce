@@ -1,25 +1,48 @@
 import { createProduct, getAllProducts } from "../services/product.service.js";
 
-export const getProducts=async(req,res)=>{
-    console.log("Req user Id",req.user._id)
-    const userID=req.user._id;
-    console.log("userId",userID)
-    console.log("Comes in to the /get-product router and the data is",req.body);
-    
-    const userData={
-        userId:req.user._id,
-        name:req.user.userName,
-        email:req.user.email,
-        subscription:req.user.subscription,
+export const getProducts = async (req, res) => {
+
+    try {
+
+        const userData = {
+
+            userId: req.user._id,
+
+            name: req.user.userName,
+
+            email: req.user.email,
+
+            subscription: req.user.subscription,
+        };
+
+        const result =
+            await getAllProducts(userData);
+
+        return res.status(200).json({
+
+            success: result.success,
+
+            subscriptionPlan:
+                result.subscriptionPlan,
+
+            products:
+                result.products
+        });
+
     }
-    console.log("userData",userData.userId);
+    catch (error) {
 
-    const getProductsForUsers=await getAllProducts(userData);
+        console.log(error);
 
+        return res.status(500).json({
 
-    
-}
+            success: false,
 
+            message:
+                "Error fetching products"
+        });
+    }
+};
 
 export const CreateProduct =
 async (req,res,next)=>{

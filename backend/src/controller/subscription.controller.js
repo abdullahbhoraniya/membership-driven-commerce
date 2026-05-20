@@ -52,8 +52,7 @@ export const getSubscription=async(req,res,next)=>{
     try {
         const getSubscription=await Subscription.find();
 
-        console.log("Get subscription",getSubscription);
-
+        console.log("Subscription data",getSubscription.data);
         return res.status(200).json({
             success:true,
             message:"Subscription fetch successfully",

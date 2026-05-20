@@ -6,76 +6,88 @@ export const getAllProducts = async (user) => {
 
     try {
 
-        // GET USER SUBSCRIPTION
-        let subscription = user.subscription;
+        let subscription = null;
 
-        // IF NO SUBSCRIPTION
-        // FETCH FREE PLAN
+        // FETCH USER SUBSCRIPTION
+        if (user.subscription) {
+
+            subscription =
+                await Subscription.findById(
+                    user.subscription
+                );
+        }
+
+        // FALLBACK FREE PLAN
         if (!subscription) {
 
             subscription =
-            await Subscription.findOne({
-                name: "Free"
-            });
+                await Subscription.findOne({
+                    name: "Free"
+                });
         }
 
-        // FETCH PRODUCTS
-        const products = await Product.find();
+        console.log(
+            "SUBSCRIPTION DATA",
+            subscription
+        );
 
-        // APPLY DYNAMIC DISCOUNT
+        const products =
+            await Product.find();
+
         const updatedProducts =
-        products.map((product) => {
+            products.map((product) => {
 
-            const originalPrice =
-            product.price;
+                const originalPrice =
+                    product.price;
 
-            const discountPercent =
-            subscription.discountPercent;
+                const discountPercent =
+                    subscription.discountPercent || 0;
 
-            console.log("DiscountPercent",discountPercent);
+                const discountAmount =
+                    (
+                        originalPrice *
+                        discountPercent
+                    ) / 100;
 
-            const discountAmount =
-            (
-                originalPrice *
-                discountPercent
-            ) / 100;
+                const finalPrice =
+                    originalPrice -
+                    discountAmount;
 
-            const finalPrice =
-            originalPrice - discountAmount;
+                return {
 
-            return {
+                    productId: product._id,
 
-                productId: product._id,
+                    productName:
+                        product.productName,
 
-                productName: product.productName,
+                    image: product.image,
 
-                image: product.image,
+                    originalPrice,
 
-                originalPrice,
+                    discountPercent,
 
-                discountPercent,
+                    discountAmount,
 
-                discountAmount,
+                    finalPrice,
 
-                finalPrice,
+                    premiumOnly:
+                        product.premiumOnly,
 
-                premiumOnly:
-                product.premiumOnly,
+                    isPremiumLocked:
+                        product.premiumOnly &&
+                        subscription.name === "Free"
+                };
+            });
 
-                isPremiumLocked:
-                product.premiumOnly &&
-                subscription.name === "Free"
-            };
-        });
-        console.log("Updated product data",updatedProducts)
         return {
 
             success: true,
 
             subscriptionPlan:
-            subscription.name,
+                subscription.name,
 
-            products: updatedProducts
+            products:
+                updatedProducts
         };
 
     }
@@ -91,7 +103,7 @@ export const getAllProducts = async (user) => {
             success: false,
 
             message:
-            "Error fetching products"
+                "Error fetching products"
         };
     }
 };
@@ -117,7 +129,7 @@ export const createProduct = async (productDetails) => {
 
             premiumOnly
         });
-        console.log("Product data",product)
+        console.log("Product data", product)
         return {
 
             success: true,

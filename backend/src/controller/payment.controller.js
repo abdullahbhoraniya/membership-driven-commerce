@@ -5,13 +5,31 @@ import AppError from "../utils/AppError.js";
 
 export const createOrder=async(req,res)=>{
     const {subscriptionId}=req.body;
+    console.log("Requested user id ",req.user._id)
+    console.log("comes in with id:",subscriptionId)
 
     const createOrderResponse=await CreateOrder(subscriptionId);
 
+     if (!createOrderResponse.success) {
+
+        throw new AppError(
+            "Error while creating order",
+            500
+        );
+    }
     
-    if(createOrderResponse.success){
-        const order = createOrderResponse.order;
-        res.status(200).json({
+    const order = createOrderResponse.order;
+    console.log("Order after creation",order)
+
+    const response=await Payment.create({
+        user:req.user._id,
+        subscription:subscriptionId,
+        razorpayOrderId:order.id,
+        amount:order.amount / 100,
+        paymentStatus:"pending"
+    })
+    console.log("Response",response)
+       return res.status(200).json({
             success:true,
             message:"Order Created successfully",
             order: order,
@@ -20,76 +38,196 @@ export const createOrder=async(req,res)=>{
             currency: order.currency
         })
     }
-    else{
-        throw new AppError("Error while creating order",500)
-    }
 
-    const order=await createOrderResponse.order;
+export const verifyPayment = async (req, res) => {
 
-    await Payment.create({
-        user:req.user._id,
-        subscription:subscriptionId,
-        razorpayOrderId:order.id,
-        amount:order.amount / 100,
-        paymentStatus:"pending"
-    })
-}
+    try {
 
-export const verifyPayment=async(req,res)=>{
-    console.log("VERIFY PAYMENT CALLED", req.body);
-    const {orderId,paymentId,signature}=req.body;
+        console.log(
+            "VERIFY PAYMENT CALLED",
+            req.body
+        );
 
-    console.log("Received payment details", { orderId, paymentId, signature });
+        const {
+            orderId,
+            paymentId,
+            signature
+        } = req.body;
 
-    if(!orderId || !paymentId || !signature){
-        return res.status(400).json({
-            success:false,
-            message:"Missing required payment details"
-        })
-    }
+        console.log(
+            "Received payment details",
+            {
+                orderId,
+                paymentId,
+                signature
+            }
+        );
 
-    const paymentDetails={
-        paymentId:paymentId,
-        orderId:orderId,
-        signature:signature
-    };
+        // =========================
+        // VALIDATION
+        // =========================
 
-    const result=await VerifyPayment(paymentDetails);
+        if (
+            !orderId ||
+            !paymentId ||
+            !signature
+        ) {
 
-    if(result){
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Missing required payment details"
+            });
+        }
+
+        // =========================
+        // VERIFY PAYMENT
+        // =========================
+
+        const paymentDetails = {
+
+            paymentId,
+
+            orderId,
+
+            signature
+        };
+
+        const result =
+            await VerifyPayment(
+                paymentDetails
+            );
+
+        if (!result) {
+
+            throw new AppError(
+                "Invalid payment details",
+                500
+            );
+        }
+
+        // =========================
+        // FIND PAYMENT RECORD
+        // =========================
+
+        const payment =
+            await Payment.findOne({
+
+                razorpayOrderId: orderId
+            });
+
+        console.log(
+            "PAYMENT RECORD",
+            payment
+        );
+
+        if (!payment) {
+
+            throw new AppError(
+                "No payment record found",
+                404
+            );
+        }
+
+        // =========================
+        // UPDATE PAYMENT
+        // =========================
+
+        payment.paymentStatus =
+            "success";
+
+        payment.razorpayPaymentId =
+            paymentId;
+
+        await payment.save();
+
+        // =========================
+        // FIND USER
+        // =========================
+
+        const user =
+            await userModel.findById(
+                payment.user
+            );
+
+        console.log(
+            "USER",
+            user
+        );
+
+        if (!user) {
+
+            throw new AppError(
+                "User not found",
+                404
+            );
+        }
+
+        // =========================
+        // UPDATE USER SUBSCRIPTION
+        // =========================
+
+        user.subscription =
+            payment.subscription;
+
+        user.subscriptionStartDate =
+            new Date();
+
+        user.subscriptionEndDate =
+            new Date(
+                Date.now() +
+                30 *
+                24 *
+                60 *
+                60 *
+                1000
+            );
+
+        await user.save();
+
+        // =========================
+        // FINAL RESPONSE
+        // =========================
+
         return res.status(200).json({
-            success:true,
-            message:"Payment verified successfully",
-        })
+
+            success: true,
+
+            message:
+                "Subscription activated successfully"
+        });
+
     }
-    else{
-        throw new AppError("Invalid payment details",500);
+    catch (error) {
+
+        console.log(
+            "VERIFY PAYMENT ERROR",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Internal Server Error"
+        });
     }
-    const payment=await Payment.findOne({
-        razorpayOrderId:orderId
-    });
+};
 
-    if(!payment){
-        throw new AppError("there is no such record please try again");
+// Payment history for current user
+export const getPaymentHistory = async (req, res) => {
+    try {
+        const payments = await Payment.find({ user: req.user._id })
+            .populate('subscription')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({ success: true, payments });
+    } catch (error) {
+        console.error('getPaymentHistory error', error);
+        return res.status(500).json({ success: false, message: 'Unable to fetch payment history' });
     }
-
-    payment.paymentStatus="success",
-    payment.razorpayPaymentId=paymentId;
-    await payment.save();
-
-    const user=await userModel.findById({_id:payment.user});
-
-    user.subscription=payment.subscription;
-
-    user.subscriptionStartDate=new Date();
-
-    user.subscriptionEndDate=new Date(
-        Date.now() + 30*24*60*60*1000
-    );
-    await user.save();
-
-    return res.status(200).json({
-        success:true,
-        message:"Subscription activated successfully"
-    })
-}
+};
